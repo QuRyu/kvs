@@ -12,13 +12,14 @@ use std::ffi::OsStr;
 
 const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
 
-pub trait KvEngine { 
+/// Define the storage interface for a key/value engine. 
+pub trait KvsEngine { 
     /// Set the value of a string key to a value. 
     ///
     /// # Error 
     ///
     /// Return an error if the value is not written successfully. 
-    pub fn set(&mut self, key: String, value: String) -> Result<()>;
+    fn set(&mut self, key: String, value: String) -> Result<()>;
 
     /// Get the string value of a string key. 
     /// If the key does not exist, return `None`. 
@@ -26,14 +27,15 @@ pub trait KvEngine {
     /// # Error 
     ///
     /// Return an error if the value is not read successfully. 
-    pub fn get(&mut self, key: String, value: String) -> Result<Option<String>>;
+    fn get(&mut self, key: String) -> Result<Option<String>>;
 
-    /// Remove a given string key. 
+    /// Remove a string key.
     ///
-    /// # Error
+    /// # Error 
     ///
-    /// Return an error if the key does not exist or the value is not read successfully. 
-    pub fn remove(&mut self, key: String) -> Result<()>;
+    /// Return an error if the key is not present or 
+    /// the value is not read successfully.
+    fn remove(&mut self, key: String) -> Result<()>;
 }
 
 /// The `KvStore` stores string key/value pairs.
@@ -198,8 +200,17 @@ impl KvStore {
             *cmd_pos = (compaction_gen, new_pos..new_pos + len).into();
             new_pos += len;
         }
-        compaction_writer.flush()?;
-            self.readers.remove(&stale_gen);
+        
+        let stale_gens: Vec<_> = self
+            .readers
+            .keys()
+            .filter(|&&gen| gen < compaction_gen)
+            .cloned()
+            .collect();
+
+        for stale_gen in stale_gens { 
+            compaction_writer.flush()?;
+                self.readers.remove(&stale_gen);
             fs::remove_file(log_path(&self.path, stale_gen))?;
         }
         
@@ -212,6 +223,20 @@ impl KvStore {
     /// Returns the writer to the log.
     fn new_log_file(&mut self, gen: u64) -> Result<BufWriterWithPos<File>> {
         new_log_file(&self.path, gen, &mut self.readers)
+    }
+}
+
+impl KvsEngine for KvStore { 
+    fn set(&mut self, key: String, value: String) -> Result<()> { 
+        self.set(key, value)
+    }
+
+    fn get(&mut self, key: String) -> Result<Option<String>> {
+        self.get(key)
+    }
+
+    fn remove(&mut self, key: String) -> Result<()> { 
+        self.remove(key)
     }
 }
 
