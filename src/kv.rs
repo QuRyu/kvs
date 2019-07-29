@@ -12,6 +12,30 @@ use std::ffi::OsStr;
 
 const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
 
+pub trait KvEngine { 
+    /// Set the value of a string key to a value. 
+    ///
+    /// # Error 
+    ///
+    /// Return an error if the value is not written successfully. 
+    pub fn set(&mut self, key: String, value: String) -> Result<()>;
+
+    /// Get the string value of a string key. 
+    /// If the key does not exist, return `None`. 
+    ///
+    /// # Error 
+    ///
+    /// Return an error if the value is not read successfully. 
+    pub fn get(&mut self, key: String, value: String) -> Result<Option<String>>;
+
+    /// Remove a given string key. 
+    ///
+    /// # Error
+    ///
+    /// Return an error if the key does not exist or the value is not read successfully. 
+    pub fn remove(&mut self, key: String) -> Result<()>;
+}
+
 /// The `KvStore` stores string key/value pairs.
 ///
 /// Key/value pairs are persisted to disk in log files. Log files are named after
@@ -175,19 +199,11 @@ impl KvStore {
             new_pos += len;
         }
         compaction_writer.flush()?;
-
-        // remove stale log files
-        let stale_gens: Vec<_> = self
-            .readers
-            .keys()
-            .filter(|&&gen| gen < compaction_gen)
-            .cloned()
-            .collect();
-        for stale_gen in stale_gens {
             self.readers.remove(&stale_gen);
             fs::remove_file(log_path(&self.path, stale_gen))?;
         }
-
+        
+        self.uncompacted = 0;
         Ok(())
     }
 
