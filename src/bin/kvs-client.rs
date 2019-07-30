@@ -3,7 +3,7 @@ use std::net::{SocketAddr, TcpStream};
 
 use structopt::StructOpt;
 
-use kvs::{KvStore, KvsError, Result};
+use kvs::{KvStore, KvsError, Result, Request};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "kvs-client")]
@@ -69,23 +69,22 @@ fn main() -> Result<()> {
     //let listender = TcpListener::bind(cmd.addr)?;
 
     match cmd { 
-        Command::GET { addr, .. } => { 
+        Command::GET { key, addr } => { 
             let mut stream = TcpStream::connect(addr)?;
-            stream.write(b"get")?;
+            serde_json::to_writer(&mut stream, &Request::Get { key })?;
             stream.flush()?;
         }
         
-        Command::SET { addr, .. } => {
+        Command::SET { key, value, addr } => {
             let mut stream = TcpStream::connect(addr)?;
-            stream.write(b"set")?;
+            serde_json::to_writer(&mut stream, &Request::Set { key, value })?;
             stream.flush()?;
         }
 
-        Command::REMOVE { addr, .. } => { 
+        Command::REMOVE { key, addr } => { 
             let mut stream = TcpStream::connect(addr)?;
-            stream.write(b"remove")?;
+            serde_json::to_writer(&mut stream, &Request::Remove { key })?;
             stream.flush()?;
-
         }
     }
 

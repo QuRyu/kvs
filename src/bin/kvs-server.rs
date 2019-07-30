@@ -1,7 +1,7 @@
 use std::io::{Read};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 
-use kvs::{KvStore, KvsError, Result};
+use kvs::{KvStore, KvsError, Result, Request, Response};
 
 use clap::arg_enum;
 use structopt::StructOpt;
@@ -9,6 +9,7 @@ use slog::{info, debug};
 use sloggers::Build; 
 use sloggers::terminal::{TerminalLoggerBuilder, Destination};
 use sloggers::types::Severity; 
+use serde_json::{Deserializer};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "kvs-server")]
@@ -58,6 +59,26 @@ fn main() -> Result<()> {
 
         stream.read_to_string(&mut buf)?;
         debug!(logger, "message: {}", buf);
+
+        let reader = Deserializer::from_reader(stream).into_iter::<Request>();
+
+        for re in reader { 
+            match re? { 
+                Request::Set {key, value } => {
+                    info!(logger, "Request::Set {{ key {}, value {} }}", key, value);
+                }
+
+                Request::Get { key } => { 
+                    info!(logger, "Request::Get {{ key {} }}", key);
+                }
+
+                Request::Remove { key } => { 
+                    info!(logger, "Request::Remove {{ key {} }}", key);
+
+                }
+            }
+        }
+
         
         buf.clear();
     }
