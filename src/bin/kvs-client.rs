@@ -1,6 +1,9 @@
-use std::net::SocketAddr;
+use std::io::Write;
+use std::net::{SocketAddr, TcpStream};
 
 use structopt::StructOpt;
+
+use kvs::{KvStore, KvsError, Result};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "kvs-client")]
@@ -60,4 +63,32 @@ enum Command {
     },
 }
 
-fn main() {}
+fn main() -> Result<()> {
+    let cmd = Command::from_args();
+
+    //let listender = TcpListener::bind(cmd.addr)?;
+
+    match cmd { 
+        Command::GET { addr, .. } => { 
+            let mut stream = TcpStream::connect(addr)?;
+            stream.write(b"get")?;
+            stream.flush()?;
+        }
+        
+        Command::SET { addr, .. } => {
+            let mut stream = TcpStream::connect(addr)?;
+            stream.write(b"set")?;
+            stream.flush()?;
+        }
+
+        Command::REMOVE { addr, .. } => { 
+            let mut stream = TcpStream::connect(addr)?;
+            stream.write(b"remove")?;
+            stream.flush()?;
+
+        }
+    }
+
+    Ok(())
+
+}

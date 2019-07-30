@@ -17,6 +17,9 @@ pub enum KvsError {
     /// It indicated a corrupted log or a program bug.
     #[fail(display = "Unexpected command type")]
     UnexpectedCommandType,
+    /// Slogger initialization error
+    #[fail(display = "{}", _0)]
+    Sloggers(#[cause] sloggers::Error),
 }
 
 impl From<io::Error> for KvsError {
@@ -28,6 +31,12 @@ impl From<io::Error> for KvsError {
 impl From<serde_json::Error> for KvsError {
     fn from(err: serde_json::Error) -> KvsError {
         KvsError::Serde(err)
+    }
+}
+
+impl From<sloggers::Error> for KvsError { 
+    fn from(err: sloggers::Error) -> KvsError { 
+        KvsError::Sloggers(err)
     }
 }
 
