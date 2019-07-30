@@ -20,6 +20,9 @@ pub enum KvsError {
     /// Slogger initialization error
     #[fail(display = "{}", _0)]
     Sloggers(#[cause] sloggers::Error),
+    /// Error response from server when request is not processed successfully. 
+    #[fail(display = "{}", _0)]
+    ServerError(String),
 }
 
 impl From<io::Error> for KvsError {
