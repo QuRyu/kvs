@@ -1,18 +1,17 @@
 use std::collections::{BTreeMap, HashMap};
+use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::ffi::OsStr;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Deserializer;
 
+use crate::KvsEngine;
 use crate::{KvsError, Result};
-use crate::{KvsEngine};
 
 const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
-
 
 /// The `KvStore` stores string key/value pairs.
 ///
@@ -176,7 +175,7 @@ impl KvStore {
             *cmd_pos = (compaction_gen, new_pos..new_pos + len).into();
             new_pos += len;
         }
-        
+
         let stale_gens: Vec<_> = self
             .readers
             .keys()
@@ -184,12 +183,12 @@ impl KvStore {
             .cloned()
             .collect();
 
-        for stale_gen in stale_gens { 
+        for stale_gen in stale_gens {
             compaction_writer.flush()?;
-                self.readers.remove(&stale_gen);
+            self.readers.remove(&stale_gen);
             fs::remove_file(log_path(&self.path, stale_gen))?;
         }
-        
+
         self.uncompacted = 0;
         Ok(())
     }
@@ -202,8 +201,8 @@ impl KvStore {
     }
 }
 
-impl KvsEngine for KvStore { 
-    fn set(&mut self, key: String, value: String) -> Result<()> { 
+impl KvsEngine for KvStore {
+    fn set(&mut self, key: String, value: String) -> Result<()> {
         self.set(key, value)
     }
 
@@ -211,7 +210,7 @@ impl KvsEngine for KvStore {
         self.get(key)
     }
 
-    fn remove(&mut self, key: String) -> Result<()> { 
+    fn remove(&mut self, key: String) -> Result<()> {
         self.remove(key)
     }
 }

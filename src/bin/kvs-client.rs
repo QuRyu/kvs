@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use structopt::StructOpt;
 
-use kvs::{Result, KvsClient};
+use kvs::{KvsClient, Result};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "kvs-client")]
@@ -65,27 +65,25 @@ enum Command {
 fn main() -> Result<()> {
     let cmd = Command::from_args();
 
-
-    match cmd { 
-        Command::GET { key, addr } => { 
+    match cmd {
+        Command::GET { key, addr } => {
             let mut client = KvsClient::connect(&addr)?;
-            match client.get(key)? { 
+            match client.get(key)? {
                 Some(v) => println!("{}", v),
                 None => println!("Key not found"),
             }
         }
-        
+
         Command::SET { key, value, addr } => {
             let mut client = KvsClient::connect(&addr)?;
             client.set(key, value)?;
         }
 
-        Command::REMOVE { key, addr } => { 
+        Command::REMOVE { key, addr } => {
             let mut client = KvsClient::connect(&addr)?;
             client.remove(key)?;
         }
     }
 
     Ok(())
-
 }
