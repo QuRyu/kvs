@@ -31,7 +31,7 @@ enum Command {
         addr: SocketAddr,
     },
 
-    #[structopt(name = "remove", about = "Remove a given string key")]
+    #[structopt(name = "rm", about = "Remove a given string key")]
     REMOVE {
         #[structopt(name = "KEY", help = "A string key")]
         key: String,
@@ -69,7 +69,10 @@ fn main() -> Result<()> {
     match cmd { 
         Command::GET { key, addr } => { 
             let mut client = KvsClient::connect(&addr)?;
-            client.get(key)?;
+            match client.get(key)? { 
+                Some(v) => println!("{}", v),
+                None => println!("Key not found"),
+            }
         }
         
         Command::SET { key, value, addr } => {

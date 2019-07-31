@@ -1,15 +1,21 @@
 use std::path::Path;
 use std::option::Option;
 
-use crate::{KvsEngine, Result};
+use crate::{KvsEngine, KvsError, Result};
 
 use sled::{Db};
 
+/// Key/value storage backend wrapper around Sled.
 pub struct SledKvsEngine {
     db: Db,
 }
 
 impl SledKvsEngine { 
+    /// Create a new sled kv engine. 
+    ///
+    /// # Error 
+    ///
+    /// Return an error if sled fails to initialize. 
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> { 
         let db = Db::start_default(path)?;
 
@@ -32,7 +38,7 @@ impl KvsEngine for SledKvsEngine {
     }
 
     fn remove(&mut self, key: String) -> Result<()> {
-        self.db.del(key)?;
+        self.db.del(key)?.ok_or(KvsError::KeyNotFound)?;
         self.db.flush()?;
         Ok(())
     }

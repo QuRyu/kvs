@@ -22,8 +22,8 @@ impl<E: KvsEngine> KvsServer<E> {
     }
 
     /// Start KvsServer to serve incoming requests.
-    pub fn run(&mut self, addr: SocketAddr) -> Result<()> { 
-        let listener = TcpListener::bind(&addr)?;
+    pub fn run(&mut self, addr: &SocketAddr) -> Result<()> { 
+        let listener = TcpListener::bind(addr)?;
         info!(self.logger, "Bind to address {:?}", addr);
 
         for stream in listener.incoming() { 
