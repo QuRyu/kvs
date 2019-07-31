@@ -5,8 +5,10 @@ pub use error::{KvsError, Result};
 pub use engines::{KvStore, KvsEngine};
 pub use messages::{Request, Response};
 pub use client::KvsClient;
+pub use server::KvsServer;
 
 mod error;
 mod engines;
 mod messages;
 mod client;
+mod server;
