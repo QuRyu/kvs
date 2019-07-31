@@ -23,6 +23,12 @@ pub enum KvsError {
     /// Error response from server when request is not processed successfully. 
     #[fail(display = "{}", _0)]
     ServerError(String),
+    /// Sled Error
+    #[fail(display = "{}", _0)]
+    Sled(#[cause] sled::Error),
+    /// Failure of conversion from bytes to String 
+    #[fail(display = "{}", _0)]
+    FromUtf8Error(#[cause] std::string::FromUtf8Error),
 }
 
 impl From<io::Error> for KvsError {
@@ -40,6 +46,18 @@ impl From<serde_json::Error> for KvsError {
 impl From<sloggers::Error> for KvsError { 
     fn from(err: sloggers::Error) -> KvsError { 
         KvsError::Sloggers(err)
+    }
+}
+
+impl From<sled::Error> for KvsError { 
+    fn from(err: sled::Error) -> KvsError { 
+        KvsError::Sled(err)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for KvsError { 
+    fn from(err: std::string::FromUtf8Error) -> KvsError { 
+        KvsError::FromUtf8Error(err)
     }
 }
 

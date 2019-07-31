@@ -2,7 +2,7 @@
 //! A simple key/value store.
 
 pub use error::{KvsError, Result};
-pub use engines::{KvStore, KvsEngine};
+pub use engines::{KvStore, KvsEngine, SledKvsEngine};
 pub use messages::{Request, Response};
 pub use client::KvsClient;
 pub use server::KvsServer;
