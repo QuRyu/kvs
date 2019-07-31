@@ -109,7 +109,7 @@ fn detect_engine(path: &Path, logger: Logger) -> Result<Option<Engine>> {
     }
 
     match std::fs::read_to_string(engine_path)?.parse() {
-        Ok(v) => return Ok(Some(v)),
+        Ok(v) => Ok(Some(v)),
         Err(e) => {
             warn!(logger, "Content of engine file invalid: {}", e);
             Ok(None)
