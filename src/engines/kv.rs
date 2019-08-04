@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
@@ -30,7 +31,80 @@ const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
 /// # Ok(())
 /// # }
 /// ```
-pub struct KvStore {
+pub struct KvStore { 
+    data: Arc<Mutex<KvStoreData>>,
+}
+
+impl KvStore { 
+    /// Opens a `KvStore` with the given path.
+    ///
+    /// This will create a new directory if the given one does not exist.
+    ///
+    /// # Errors
+    ///
+    /// It propagates I/O or deserialization errors during the log replay.
+    pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
+        let data = KvStoreData::open(path)?;
+        Ok(KvStore { 
+            data: Arc::new(Mutex::new(data)),
+        })
+    }
+
+    /// Sets the value of a string key to a string.
+    ///
+    /// If the key already exists, the previous value will be overwritten.
+    ///
+    /// # Errors
+    ///
+    /// It propagates I/O or serialization errors during writing the log.
+    pub fn set(&self, key: String, value: String) -> Result<()> { 
+        let mut data = self.data.lock().unwrap();
+        data.set(key, value)
+    }
+
+    /// Gets the string value of a given string key.
+    ///
+    /// Returns `None` if the given key does not exist.
+    pub fn get(&self, key: String) -> Result<Option<String>> { 
+        let mut data = self.data.lock().unwrap();
+        data.get(key)
+    }
+
+    /// Removes a given key.
+    ///
+    /// # Errors
+    ///
+    /// It returns `KvsError::KeyNotFound` if the given key is not found.
+    ///
+    /// It propagates I/O or serialization errors during writing the log.
+    pub fn remove(&self, key: String) -> Result<()> { 
+        let mut data = self.data.lock().unwrap();
+        data.remove(key)
+
+    }
+}
+
+impl KvsEngine for KvStore {
+    fn set(&self, key: String, value: String) -> Result<()> { 
+        self.set(key, value)
+    }
+
+    fn get(&self, key: String) -> Result<Option<String>> { 
+        self.get(key)
+    }
+
+    fn remove(&self, key: String) -> Result<()> { 
+        self.remove(key)
+    }
+}
+
+impl Clone for KvStore { 
+    fn clone(&self) -> Self { 
+        KvStore { data: self.data.clone() }
+    }
+}
+
+struct KvStoreData {
     // directory for the log and other data
     path: PathBuf,
     // map generation number to the file reader
@@ -44,15 +118,8 @@ pub struct KvStore {
     uncompacted: u64,
 }
 
-impl KvStore {
-    /// Opens a `KvStore` with the given path.
-    ///
-    /// This will create a new directory if the given one does not exist.
-    ///
-    /// # Errors
-    ///
-    /// It propagates I/O or deserialization errors during the log replay.
-    pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
+impl KvStoreData {
+    fn open(path: impl Into<PathBuf>) -> Result<KvStoreData> {
         let path = path.into();
         fs::create_dir_all(&path)?;
 
@@ -71,7 +138,7 @@ impl KvStore {
         let current_gen = gen_list.last().unwrap_or(&0) + 1;
         let writer = new_log_file(&path, current_gen, &mut readers)?;
 
-        Ok(KvStore {
+        Ok(KvStoreData {
             path,
             readers,
             writer,
@@ -81,14 +148,7 @@ impl KvStore {
         })
     }
 
-    /// Sets the value of a string key to a string.
-    ///
-    /// If the key already exists, the previous value will be overwritten.
-    ///
-    /// # Errors
-    ///
-    /// It propagates I/O or serialization errors during writing the log.
-    pub fn set(&mut self, key: String, value: String) -> Result<()> {
+    fn set(&mut self, key: String, value: String) -> Result<()> {
         let cmd = Command::set(key, value);
         let pos = self.writer.pos;
         serde_json::to_writer(&mut self.writer, &cmd)?;
@@ -108,10 +168,7 @@ impl KvStore {
         Ok(())
     }
 
-    /// Gets the string value of a given string key.
-    ///
-    /// Returns `None` if the given key does not exist.
-    pub fn get(&mut self, key: String) -> Result<Option<String>> {
+    fn get(&mut self, key: String) -> Result<Option<String>> {
         if let Some(cmd_pos) = self.index.get(&key) {
             let reader = self
                 .readers
@@ -129,14 +186,7 @@ impl KvStore {
         }
     }
 
-    /// Removes a given key.
-    ///
-    /// # Errors
-    ///
-    /// It returns `KvsError::KeyNotFound` if the given key is not found.
-    ///
-    /// It propagates I/O or serialization errors during writing the log.
-    pub fn remove(&mut self, key: String) -> Result<()> {
+    fn remove(&mut self, key: String) -> Result<()> {
         if self.index.contains_key(&key) {
             let cmd = Command::remove(key);
             serde_json::to_writer(&mut self.writer, &cmd)?;
@@ -152,7 +202,7 @@ impl KvStore {
     }
 
     /// Clears stale entries in the log.
-    pub fn compact(&mut self) -> Result<()> {
+    fn compact(&mut self) -> Result<()> {
         // increase current gen by 2. current_gen + 1 is for the compaction file
         let compaction_gen = self.current_gen + 1;
         self.current_gen += 2;
@@ -198,20 +248,6 @@ impl KvStore {
     /// Returns the writer to the log.
     fn new_log_file(&mut self, gen: u64) -> Result<BufWriterWithPos<File>> {
         new_log_file(&self.path, gen, &mut self.readers)
-    }
-}
-
-impl KvsEngine for KvStore {
-    fn set(&mut self, key: String, value: String) -> Result<()> {
-        self.set(key, value)
-    }
-
-    fn get(&mut self, key: String) -> Result<Option<String>> {
-        self.get(key)
-    }
-
-    fn remove(&mut self, key: String) -> Result<()> {
-        self.remove(key)
     }
 }
 
