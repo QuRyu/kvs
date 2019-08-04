@@ -9,7 +9,7 @@ use sloggers::types::Severity;
 use sloggers::Build;
 use structopt::StructOpt;
 
-use kvs::{KvStore, KvsEngine, KvsServer, Result, SledKvsEngine};
+use kvs::{KvStore, KvsEngine, KvsServer, Result, SledKvsEngine, NaiveThreadPool, ThreadPool};
 
 const DEFAULT_ENGINE: Engine = Engine::kvs;
 
@@ -96,7 +96,8 @@ fn run(cmd: Command, logger: Logger) -> Result<()> {
 }
 
 fn run_with_engine<E: KvsEngine>(engine: E, addr: &SocketAddr, logger: Logger) -> Result<()> {
-    let mut server = KvsServer::new(engine, logger);
+    let pool = NaiveThreadPool::new(4)?;
+    let mut server = KvsServer::new(engine, logger, pool);
     server.run(addr)
 }
 
