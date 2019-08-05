@@ -96,7 +96,8 @@ fn run(cmd: Command, logger: Logger) -> Result<()> {
 }
 
 fn run_with_engine<E: KvsEngine>(engine: E, addr: &SocketAddr, logger: Logger) -> Result<()> {
-    let pool = NaiveThreadPool::new(4)?;
+    let cpus = num_cpus::get();
+    let pool = NaiveThreadPool::new(cpus as u32)?;
     let mut server = KvsServer::new(engine, logger, pool);
     server.run(addr)
 }
