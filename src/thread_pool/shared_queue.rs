@@ -1,3 +1,6 @@
+
+use crossbeam::channel;
+
 use super::ThreadPool;
 use crate::{Result};
 
