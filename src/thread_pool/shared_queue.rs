@@ -1,7 +1,6 @@
 use crossbeam::crossbeam_channel::unbounded; 
 use crossbeam::channel::{Sender, Receiver};
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 
@@ -15,43 +14,34 @@ enum ThreadMessage {
 }
 
 // Spawns a new thread if
+#[derive(Clone)]
 struct ThreadGuard {
-    shutdown: bool,
-    threads_count: Arc<AtomicUsize>,
-    spawn_count: Arc<AtomicUsize>,
+    receiver: Receiver<ThreadMessage>,
 }
 
 impl ThreadGuard { 
-    fn new(threads_count: Arc<AtomicUsize>, spawn_count: Arc<AtomicUsize>) -> Self { 
-        threads_count.fetch_add(1, Ordering::SeqCst);
-        spawn_count.fetch_sub(1, Ordering::SeqCst);
+    fn new(receiver: Receiver<ThreadMessage>) -> Self { 
         ThreadGuard { 
-            shutdown: false, 
-            threads_count,
-            spawn_count,
+            receiver
         }
-    }
-
-    fn shutdown(&mut self) { 
-        self.shutdown = true;
     }
 }
 
 impl Drop for ThreadGuard { 
     fn drop(&mut self) {
-        if !self.shutdown {
-            self.spawn_count.fetch_add(1, Ordering::SeqCst);
-            self.threads_count.fetch_sub(1, Ordering::SeqCst);
+        if thread::panicking() {
+            let r = self.clone();
+            if let Err(e) = thread::Builder::new().spawn(move || { run_task(r) }) {
+                eprintln!("Fail to spawn new thread {}", e);
+            }
         }
     }
 }
 
 /// shared 
 pub struct SharedQueueThreadPool { 
+    n_threads: u32,
     sender: Arc<Sender<ThreadMessage>>,
-    receiver: Receiver<ThreadMessage>,
-    threads_count: Arc<AtomicUsize>, // number of active threads
-    spawn_count: Arc<AtomicUsize>, // number of threads to spawn 
 }
 
 impl ThreadPool for SharedQueueThreadPool { 
@@ -60,64 +50,41 @@ impl ThreadPool for SharedQueueThreadPool {
 
         let (s, r) = unbounded();
         let s = Arc::new(s);
-        let threads_count = Arc::new(AtomicUsize::new(0));
-        let spawn_count = Arc::new(AtomicUsize::new(n_threads as usize));
 
-        let pool = SharedQueueThreadPool { 
-            sender: s,
-            receiver: r,
-            threads_count,
-            spawn_count,
-        };
 
         for _ in 0..n_threads {
-            pool.spawn_new_thread();
+            let guard = ThreadGuard::new(r.clone());
+            thread::Builder::new().spawn(move || {
+                run_task(guard);
+            }).unwrap();
         }
 
-        Ok(pool)
+        Ok(SharedQueueThreadPool { 
+            n_threads,
+            sender: s,
+        })
     }
 
     fn spawn<F>(&self, job: F) where F: FnOnce() + Send + 'static { 
-        if self.spawn_count.load(Ordering::SeqCst) != 0 { 
-            let n = self.spawn_count.load(Ordering::SeqCst);
-            for _ in 0..n { 
-                self.spawn_new_thread();
-            }
-        }
-
         self.sender.send(ThreadMessage::Job(Box::new(job))).unwrap();
     }
 
 }
 
-impl SharedQueueThreadPool { 
-    fn spawn_new_thread(&self) {
-        let receiver = self.receiver.clone();
-        let t_count = self.threads_count.clone();
-        let s_count = self.spawn_count.clone();
-
-        thread::Builder::new().spawn(move || {
-            let mut guard = ThreadGuard::new(t_count, s_count);
-            loop { 
-                // handle panics 
-                
-                match receiver.recv() {
-                    Ok(ThreadMessage::Job(f)) => f(),
-                    Ok(ThreadMessage::Shutdown) => break,
-                    Err(e) => eprintln!("{}", e),
-                }
-            }
-
-            guard.shutdown();
-        }).unwrap();
+impl Drop for SharedQueueThreadPool { 
+    fn drop(&mut self) {
+        for _ in 0..self.n_threads {
+            self.sender.send(ThreadMessage::Shutdown).unwrap();
+        }
     }
 }
 
-impl Drop for SharedQueueThreadPool { 
-    fn drop(&mut self) {
-        let n = self.threads_count.load(Ordering::SeqCst);
-        for _ in 0..n {
-            self.sender.send(ThreadMessage::Shutdown).unwrap();
+fn run_task(t: ThreadGuard) {
+    loop {
+        match t.receiver.recv() {
+            Ok(ThreadMessage::Job(task)) => task(), 
+            Ok(ThreadMessage::Shutdown) => break,
+            Err(e) => eprintln!("Err on receiver: {}", e),
         }
     }
 }
