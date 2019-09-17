@@ -9,9 +9,10 @@ use sloggers::types::Severity;
 use sloggers::Build;
 use structopt::StructOpt;
 
-use kvs::{KvStore, KvsEngine, KvsServer, Result, SledKvsEngine, NaiveThreadPool, ThreadPool};
+use kvs::{KvStore, KvsEngine, KvsServer, Result, SledKvsEngine, RayonThreadPool, ThreadPool};
 
 const DEFAULT_ENGINE: Engine = Engine::kvs;
+const DEFAULT_THREAD_POOL: Pool = Pool::rayon;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "kvs-server")]
@@ -32,6 +33,14 @@ struct Command {
         raw(possible_values = "&Engine::variants()")
     )]
     engine: Option<Engine>,
+
+    #[structopt(
+        long, 
+        value_name = "THREAD-POOL",
+        help = "Specify which thread pool to use",
+        raw(possible_values = "&Pool::variants()")
+    )]
+    pool: Option<Pool>,
 }
 
 arg_enum! {
@@ -39,6 +48,15 @@ arg_enum! {
     #[allow(non_camel_case_types)]
     enum Engine {
         kvs, sled
+    }
+
+}
+
+arg_enum! {
+    #[derive(Eq, PartialEq, Debug, Clone, Copy)]
+    #[allow(non_camel_case_types)]
+    enum Pool {
+        raw, shared_queue, rayon
     }
 }
 
@@ -76,6 +94,7 @@ fn main() -> Result<()> {
 fn run(cmd: Command, logger: Logger) -> Result<()> {
     let dir = std::env::current_dir()?;
     let engine = cmd.engine.unwrap_or(DEFAULT_ENGINE);
+    let pool = cmd.pool.unwrap_or(DEFAULT_THREAD_POOL);
 
     info!(
         logger,
@@ -90,14 +109,14 @@ fn run(cmd: Command, logger: Logger) -> Result<()> {
     std::fs::write(dir.join("engine"), format!("{}", engine))?;
 
     match engine {
-        Engine::kvs => run_with_engine(KvStore::open(dir)?, &cmd.addr, logger),
-        Engine::sled => run_with_engine(SledKvsEngine::new(dir)?, &cmd.addr, logger),
+        Engine::kvs => run_with_engine(KvStore::open(dir)?, &cmd.addr, logger, pool),
+        Engine::sled => run_with_engine(SledKvsEngine::new(dir)?, &cmd.addr, logger, pool),
     }
 }
 
-fn run_with_engine<E: KvsEngine>(engine: E, addr: &SocketAddr, logger: Logger) -> Result<()> {
-    let cpus = num_cpus::get();
-    let pool = NaiveThreadPool::new(cpus as u32)?;
+fn run_with_engine<E: KvsEngine>(engine: E, addr: &SocketAddr, logger: Logger, _pool: Pool) -> Result<()> {
+    let cpus = num_cpus::get() as u32;
+    let pool = RayonThreadPool::new(cpus)?;
     let mut server = KvsServer::new(engine, logger, pool);
     server.run(addr)
 }

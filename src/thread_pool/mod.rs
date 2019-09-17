@@ -1,6 +1,6 @@
 //! This module provides various implementations of `ThreadPool` trait.  
 pub use naive::NaiveThreadPool;
-pub use rayon::RayonThreadPool;
+pub use self::rayon::RayonThreadPool;
 pub use shared_queue::SharedQueueThreadPool;
 use crate::Result;
 

@@ -1,6 +1,8 @@
 use failure::Fail;
 use std::io;
 
+use rayon::ThreadPoolBuildError;
+
 /// Error type for kvs
 #[derive(Fail, Debug)]
 pub enum KvsError {
@@ -29,6 +31,9 @@ pub enum KvsError {
     /// Failure of conversion from bytes to String
     #[fail(display = "{}", _0)]
     FromUtf8Error(#[cause] std::string::FromUtf8Error),
+    /// Rayon thread pool initialization error
+    #[fail(display = "{}", _0)]
+    RayonThreadPoolBuildError(#[cause] ThreadPoolBuildError),
 }
 
 impl From<io::Error> for KvsError {
@@ -58,6 +63,12 @@ impl From<sled::Error> for KvsError {
 impl From<std::string::FromUtf8Error> for KvsError {
     fn from(err: std::string::FromUtf8Error) -> KvsError {
         KvsError::FromUtf8Error(err)
+    }
+}
+
+impl From<ThreadPoolBuildError> for KvsError {
+    fn from(err: ThreadPoolBuildError) -> KvsError {
+        KvsError::RayonThreadPoolBuildError(err)
     }
 }
 
