@@ -9,7 +9,7 @@ use sloggers::types::Severity;
 use sloggers::Build;
 use structopt::StructOpt;
 
-use kvs::{KvStore, KvsEngine, KvsServer, Result, SledKvsEngine, RayonThreadPool, ThreadPool};
+use kvs::{KvStore, KvsEngine, KvsServer, RayonThreadPool, Result, SledKvsEngine, ThreadPool};
 
 const DEFAULT_ENGINE: Engine = Engine::kvs;
 const DEFAULT_THREAD_POOL: Pool = Pool::rayon;
@@ -35,7 +35,7 @@ struct Command {
     engine: Option<Engine>,
 
     #[structopt(
-        long, 
+        long,
         value_name = "THREAD-POOL",
         help = "Specify which thread pool to use",
         raw(possible_values = "&Pool::variants()")
@@ -114,7 +114,12 @@ fn run(cmd: Command, logger: Logger) -> Result<()> {
     }
 }
 
-fn run_with_engine<E: KvsEngine>(engine: E, addr: &SocketAddr, logger: Logger, _pool: Pool) -> Result<()> {
+fn run_with_engine<E: KvsEngine>(
+    engine: E,
+    addr: &SocketAddr,
+    logger: Logger,
+    _pool: Pool,
+) -> Result<()> {
     let cpus = num_cpus::get() as u32;
     let pool = RayonThreadPool::new(cpus)?;
     let mut server = KvsServer::new(engine, logger, pool);

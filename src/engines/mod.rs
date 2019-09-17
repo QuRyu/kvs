@@ -1,10 +1,9 @@
-pub use self::kv::KvStore; 
+pub use self::kv::KvStore;
 pub use self::sled::SledKvsEngine;
 use crate::Result;
 
 mod kv;
 mod sled;
-
 
 /// Define the storage interface for a key/value engine.
 pub trait KvsEngine: Clone + Send + 'static {

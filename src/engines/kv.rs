@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Deserializer;
@@ -31,11 +31,11 @@ const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
 /// # Ok(())
 /// # }
 /// ```
-pub struct KvStore { 
+pub struct KvStore {
     data: Arc<Mutex<KvStoreData>>,
 }
 
-impl KvStore { 
+impl KvStore {
     /// Opens a `KvStore` with the given path.
     ///
     /// This will create a new directory if the given one does not exist.
@@ -45,7 +45,7 @@ impl KvStore {
     /// It propagates I/O or deserialization errors during the log replay.
     pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
         let data = KvStoreData::open(path)?;
-        Ok(KvStore { 
+        Ok(KvStore {
             data: Arc::new(Mutex::new(data)),
         })
     }
@@ -57,7 +57,7 @@ impl KvStore {
     /// # Errors
     ///
     /// It propagates I/O or serialization errors during writing the log.
-    pub fn set(&self, key: String, value: String) -> Result<()> { 
+    pub fn set(&self, key: String, value: String) -> Result<()> {
         let mut data = self.data.lock().unwrap();
         data.set(key, value)
     }
@@ -65,7 +65,7 @@ impl KvStore {
     /// Gets the string value of a given string key.
     ///
     /// Returns `None` if the given key does not exist.
-    pub fn get(&self, key: String) -> Result<Option<String>> { 
+    pub fn get(&self, key: String) -> Result<Option<String>> {
         let mut data = self.data.lock().unwrap();
         data.get(key)
     }
@@ -77,30 +77,31 @@ impl KvStore {
     /// It returns `KvsError::KeyNotFound` if the given key is not found.
     ///
     /// It propagates I/O or serialization errors during writing the log.
-    pub fn remove(&self, key: String) -> Result<()> { 
+    pub fn remove(&self, key: String) -> Result<()> {
         let mut data = self.data.lock().unwrap();
         data.remove(key)
-
     }
 }
 
 impl KvsEngine for KvStore {
-    fn set(&self, key: String, value: String) -> Result<()> { 
+    fn set(&self, key: String, value: String) -> Result<()> {
         self.set(key, value)
     }
 
-    fn get(&self, key: String) -> Result<Option<String>> { 
+    fn get(&self, key: String) -> Result<Option<String>> {
         self.get(key)
     }
 
-    fn remove(&self, key: String) -> Result<()> { 
+    fn remove(&self, key: String) -> Result<()> {
         self.remove(key)
     }
 }
 
-impl Clone for KvStore { 
-    fn clone(&self) -> Self { 
-        KvStore { data: self.data.clone() }
+impl Clone for KvStore {
+    fn clone(&self) -> Self {
+        KvStore {
+            data: self.data.clone(),
+        }
     }
 }
 

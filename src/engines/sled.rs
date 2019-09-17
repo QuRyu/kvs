@@ -7,48 +7,50 @@ use crate::{KvsEngine, KvsError, Result};
 use sled::Db;
 
 /// Key/value storage backend wrapper around Sled.
-pub struct SledKvsEngine { 
+pub struct SledKvsEngine {
     data: Arc<Mutex<SledKvsEngineData>>,
 }
 
-impl SledKvsEngine { 
+impl SledKvsEngine {
     /// Create a new sled kv engine.
     ///
     /// # Error
     ///
     /// Return an error if sled fails to initialize.
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> { 
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let data = SledKvsEngineData::new(path)?;
 
-        Ok(SledKvsEngine { 
-            data: Arc::new(Mutex::new(data)), 
+        Ok(SledKvsEngine {
+            data: Arc::new(Mutex::new(data)),
         })
     }
 }
 
-impl KvsEngine for SledKvsEngine { 
-    fn get(&self, key: String) -> Result<Option<String>> { 
+impl KvsEngine for SledKvsEngine {
+    fn get(&self, key: String) -> Result<Option<String>> {
         let mut data = self.data.lock().unwrap();
 
         data.get(key)
     }
 
-    fn set(&self, key: String, value: String) -> Result<()> { 
+    fn set(&self, key: String, value: String) -> Result<()> {
         let mut data = self.data.lock().unwrap();
 
         data.set(key, value)
     }
 
-    fn remove(&self, key: String) -> Result<()> { 
+    fn remove(&self, key: String) -> Result<()> {
         let mut data = self.data.lock().unwrap();
 
         data.remove(key)
     }
 }
 
-impl Clone for SledKvsEngine { 
-    fn clone(&self) -> Self { 
-        SledKvsEngine { data: self.data.clone() } 
+impl Clone for SledKvsEngine {
+    fn clone(&self) -> Self {
+        SledKvsEngine {
+            data: self.data.clone(),
+        }
     }
 }
 
@@ -84,4 +86,3 @@ impl SledKvsEngineData {
         Ok(())
     }
 }
-

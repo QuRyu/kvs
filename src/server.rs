@@ -3,7 +3,7 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::Arc;
 
 use serde_json::Deserializer;
-use slog::{debug, info, error, Logger};
+use slog::{debug, error, info, Logger};
 
 use crate::{KvsEngine, Request, Response, Result, ThreadPool};
 
@@ -17,10 +17,11 @@ pub struct KvsServer<E: KvsEngine, P: ThreadPool> {
 impl<E: KvsEngine, P: ThreadPool> KvsServer<E, P> {
     /// Create a new KvsServer.
     pub fn new(engine: E, logger: Logger, pool: P) -> Self {
-        KvsServer { 
-            engine, 
-            logger: Arc::new(logger), 
-            pool }
+        KvsServer {
+            engine,
+            logger: Arc::new(logger),
+            pool,
+        }
     }
 
     /// Start KvsServer to serve incoming requests.
@@ -33,19 +34,18 @@ impl<E: KvsEngine, P: ThreadPool> KvsServer<E, P> {
             let logger_copy = self.logger.clone();
             let engine = self.engine.clone();
 
-            self.pool.spawn(move || match stream { 
+            self.pool.spawn(move || match stream {
                 Ok(s) => {
                     if let Err(e) = serve(s, engine, logger) {
                         error!(logger_copy, "Error processing incoming request: {}", e);
                     }
-                } 
+                }
                 Err(e) => error!(logger, "Connection failed: {}", e),
             });
         }
 
         Ok(())
     }
-
 }
 
 fn serve<E: KvsEngine>(stream: TcpStream, engine: E, logger: Arc<Logger>) -> Result<()> {
@@ -60,19 +60,16 @@ fn serve<E: KvsEngine>(stream: TcpStream, engine: E, logger: Arc<Logger>) -> Res
             let rep = $resp;
             serde_json::to_writer(&mut writer, &rep)?;
             writer.flush()?;
-            debug!(
-                logger,
-                "{} response sent to {}: {:?}", $op, peer_addr, rep
-            );
+            debug!(logger, "{} response sent to {}: {:?}", $op, peer_addr, rep);
         };
     }
 
     for req in reader {
         match req? {
             Request::Set { key, value } => {
-                send_resp!("Set", { 
-                    match engine.set(key, value) { 
-                        Ok(_) => Response::Ok(None), 
+                send_resp!("Set", {
+                    match engine.set(key, value) {
+                        Ok(_) => Response::Ok(None),
                         Err(e) => Response::Err(e.to_string()),
                     }
                 });
