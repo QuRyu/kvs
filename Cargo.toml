@@ -9,6 +9,10 @@ edition = "2018"
 name = "benches"
 harness = false 
 
+[[bench]]
+name = "thread_pool"
+harness = false
+
 [dependencies]
 clap = "2.32.0"
 failure = "0.1.5"
@@ -24,7 +28,7 @@ rayon = "1.2.0"
 
 [dev-dependencies]
 rand = "0.7.0"
-criterion = "0.2.11"
+criterion = "0.3.0"
 assert_cmd = "0.11.0"
 predicates = "1.0.0"
 tempfile = "3.0.7"
